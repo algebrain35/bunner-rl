@@ -16,7 +16,7 @@ def project_reward(df, future_t):
     smoothed_roc = reward_roc.rolling(window=8).mean()
 
     roc = smoothed_roc.iloc[-1]
-    print(roc)
+    print("ROC: " + str(roc))
     decay = (smoothed_roc /smoothed_roc.shift(1)).rolling(window=8).median()
     retention = decay.iloc[-1]
     avg_episode_len = np.mean(df['TimeDelta'] / 60)
@@ -70,7 +70,7 @@ if sys.argv[1] == "roc":
 elif sys.argv[1] == "proj":
     ts = train_logs['Minutes']
 
-    proj_df = project_reward(train_logs, 250*avg_batch_time(train_logs))
+    proj_df = project_reward(train_logs, 500*avg_batch_time(train_logs))
     print(len(proj_df['ProjReward']))
     plt.plot(proj_df["Future Times"], proj_df['ProjReward'], color="green", label="Decay")
     plt.plot(ts, rewards)
