@@ -1,5 +1,6 @@
 rl/*
 bunner/training
-bunner/logs
+bunner/logs/*.jpg
+bunner/logs/log
 plot_eps.py
 epsilon_vs_time.png
