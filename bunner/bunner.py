@@ -636,22 +636,20 @@ class Game:
         """
         import numpy as np
 
-        prev_min_y = self.bunner.min_y
+        prev_y = self.bunner.y
         invalid    = self._is_action_invalid(action)
 
-        # Step game until bunner lands (timer reaches 0) or dies
         self.update(action)
         while self.bunner.timer > 0 and self.bunner.state == PlayerState.ALIVE:
             self.update()
 
         terminal = self.bunner.state != PlayerState.ALIVE
 
-        # ---- Reward ----
-        reward = 0.0
+        reward = 0.01
 
         # Forward progress: each row is ROW_HEIGHT=40 units; reward per row crossed
-        rows_advanced = max(0, (prev_min_y - self.bunner.min_y)) / ROW_HEIGHT
-        reward += 0.5 * rows_advanced
+        rows_advanced = max(0, (prev_y - self.bunner.y)) / ROW_HEIGHT
+        reward += 1.0 * rows_advanced
 
         # Penalty for wasted moves against walls/hedges
         if invalid:
@@ -666,7 +664,7 @@ class Game:
         frame = self.get_processed_frame()
 
         # Push frame into the shared state buffer
-        dqn.state_buffer.push(frame)
+        ppo.state_buffer.push(frame)
 
         # Wait out death animation before returning control
         if terminal:
@@ -701,26 +699,22 @@ def display_number(n, colour, x, align):
 
 
 # ---------------------------------------------------------------------------
-# DQN setup
+# ppo setup
 # ---------------------------------------------------------------------------
+from ppo import PPO
 
-from dqn import DQN
-
-dqn = DQN(
+ppo = PPO(
     num_actions=5,
-    replay_size=50_000,
-    learning_rate=6e-4,
-    discount_factor=0.95,
-    init_epsilon=0.2,
-    final_epsilon=0.01,
-    epsilon_decay=30_000,
-    observation_limit=10_000,
-    batch_size=32,
-    target_update_frequency=1_000,
-    save_frequency=1_000,
+    learning_rate=3e-4,
+    discount_factor=0.97,
+    horizon=128,
+    entropy_coeff=0.01,
+    ppo_epochs=4,
+    mini_batch_size=32,
+    observation_limit=50_000,
+    save_frequency=5_000,
     seq_len=4,
 )
-
 
 # ---------------------------------------------------------------------------
 # Game state machine
@@ -735,7 +729,7 @@ class State(Enum):
 def _reset_episode():
     """Create a fresh game episode and zero the state buffer."""
     import numpy as np
-    dqn.state_buffer.reset()
+    ppo.state_buffer.reset()
     return Game(Bunner((240, -320)))
 
 
@@ -759,8 +753,7 @@ def update():
                 pass
             state = State.GAME_OVER
         else:
-            # current state tensor is managed entirely inside train_step / game_step
-            dqn.train_step(None, game.game_step)
+            ppo.train_step(None, game.game_step)
 
     elif state == State.GAME_OVER:
         game.stop_looped_sounds()
